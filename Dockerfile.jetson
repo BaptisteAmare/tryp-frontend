@@ -1,0 +1,28 @@
+# --- STAGE 1 : Build Angular (ARM64 compatible) ---
+FROM node:20-bullseye AS build
+
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm install
+
+COPY . .
+
+# Build Angular en mode navigateur (sans SSR)
+RUN npx ng build tryp-frontend --configuration production --prerender=false
+
+
+# --- STAGE 2 : NGINX (ARM64 compatible) ---
+FROM nginx:1.27
+
+# Supprimer la configuration par défaut
+RUN rm /etc/nginx/conf.d/default.conf
+
+# Copier notre configuration nginx
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+# Copier les fichiers Angular buildés
+COPY --from=build /app/dist/tryp-frontend/browser /usr/share/nginx/html
+
+EXPOSE 8080
+CMD ["nginx", "-g", "daemon off;"]
